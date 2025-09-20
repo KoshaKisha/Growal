@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { Plus } from "lucide-react"
+import { Plus, Menu } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { ScheduleManager } from "@/components/schedule-manager"
 import { TaskManager } from "@/components/task-manager"
@@ -13,6 +13,7 @@ import { WeekSettings } from "@/components/week-settings"
 export default function GrowApp() {
   const [currentWeek, setCurrentWeek] = useState<"upper" | "lower">("upper")
   const [activeSection, setActiveSection] = useState("calendar")
+  const [sidebarOpen, setSidebarOpen] = useState(false)
 
   const [weekType, setWeekType] = useState<"alternating" | "custom" | "none">("alternating")
   const [customWeekNames, setCustomWeekNames] = useState<string[]>(["Неделя А", "Неделя Б"])
@@ -44,26 +45,30 @@ export default function GrowApp() {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-30">
+      <header className="border-b border-border bg-card/80 backdrop-blur-md sticky top-0 z-30 shadow-sm">
         <div className="container mx-auto px-4 py-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <MobileSidebar
-                activeSection={activeSection}
-                setActiveSection={setActiveSection}
-                currentWeek={currentWeek}
-                setCurrentWeek={setCurrentWeek}
-                weekType={weekType}
-                customWeekNames={customWeekNames}
-                weekInterval={weekInterval}
-              />
-              <div className="w-8 h-8 rounded-xl bg-primary flex items-center justify-center">
-                <span className="text-primary-foreground font-bold text-sm">G</span>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setSidebarOpen(true)}
+                className="hover:bg-primary/10 transition-colors"
+              >
+                <Menu className="w-5 h-5" />
+              </Button>
+              <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-primary to-accent flex items-center justify-center float-animation">
+                <span className="text-primary-foreground font-bold text-lg">G</span>
               </div>
-              <h1 className="text-xl md:text-2xl font-bold text-foreground">Grow</h1>
+              <h1 className="text-xl md:text-2xl font-bold text-foreground bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+                Grow
+              </h1>
             </div>
 
-            <Button size="sm" className="bg-accent text-accent-foreground hover:bg-accent/90">
+            <Button
+              size="sm"
+              className="bg-primary text-primary-foreground hover:bg-primary/90 pulse-glow rounded-xl shadow-lg"
+            >
               <Plus className="w-4 h-4 mr-1 md:mr-2" />
               <span className="hidden sm:inline">Добавить</span>
             </Button>
@@ -71,24 +76,20 @@ export default function GrowApp() {
         </div>
       </header>
 
-      <div className="container mx-auto px-4 py-4 md:py-6">
-        <div className="flex flex-col md:flex-row gap-4 md:gap-6">
-          {/* Desktop Sidebar */}
-          <div className="hidden md:block md:w-80 flex-shrink-0">
-            <MobileSidebar
-              activeSection={activeSection}
-              setActiveSection={setActiveSection}
-              currentWeek={currentWeek}
-              setCurrentWeek={setCurrentWeek}
-              weekType={weekType}
-              customWeekNames={customWeekNames}
-              weekInterval={weekInterval}
-            />
-          </div>
+      <MobileSidebar
+        isOpen={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+        activeSection={activeSection}
+        setActiveSection={setActiveSection}
+        currentWeek={currentWeek}
+        setCurrentWeek={setCurrentWeek}
+        weekType={weekType}
+        customWeekNames={customWeekNames}
+        weekInterval={weekInterval}
+      />
 
-          {/* Main Content */}
-          <div className="flex-1 min-w-0">{renderContent()}</div>
-        </div>
+      <div className="container mx-auto px-4 py-4 md:py-6">
+        <div className="max-w-7xl mx-auto">{renderContent()}</div>
       </div>
     </div>
   )
