@@ -357,90 +357,133 @@ export function CalendarViews({ currentWeek }: CalendarViewsProps) {
     )
   }
 
-  const renderWeekView = () => {
-    const startOfWeek = new Date(currentDate)
-    const day = startOfWeek.getDay()
-    const diff = startOfWeek.getDate() - day + (day === 0 ? -6 : 1) // Adjust when day is Sunday
-    startOfWeek.setDate(diff)
+const renderWeekView = () => {
+  const startOfWeek = new Date(currentDate)
+  const day = startOfWeek.getDay()
+  const diff = startOfWeek.getDate() - day + (day === 0 ? -6 : 1)
+  startOfWeek.setDate(diff)
 
-    const weekDays = Array.from({ length: 7 }, (_, i) => {
-      const date = new Date(startOfWeek)
-      date.setDate(startOfWeek.getDate() + i)
-      return date
-    })
+  const weekDays = Array.from({ length: 7 }, (_, i) => {
+    const date = new Date(startOfWeek)
+    date.setDate(startOfWeek.getDate() + i)
+    return date
+  })
 
-    return (
-      <Card className="bg-card border-border">
-        <CardHeader>
-          <CardTitle className="text-card-foreground">
-            Неделя {formatDate(weekDays[0])} - {formatDate(weekDays[6])}
-          </CardTitle>
-          <div className="text-sm text-muted-foreground">
-            {currentWeek === "upper" ? "Верхняя неделя" : "Нижняя неделя"}
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-7 gap-2">
-            {weekDays.map((date, index) => {
-              const {
-                scheduleEvents: dayScheduleEvents,
-                tasks: dayTasks,
-                homework: dayHomework,
-              } = getEventsForDate(date)
-              const isToday = date.toDateString() === new Date().toDateString()
+  return (
+    <Card className="bg-card border-border">
+      <CardHeader>
+        <CardTitle className="text-card-foreground">
+          Неделя {formatDate(weekDays[0])} - {formatDate(weekDays[6])}
+        </CardTitle>
+        <div className="text-sm text-muted-foreground">
+          {currentWeek === "upper" ? "Верхняя неделя" : "Нижняя неделя"}
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div className="grid grid-cols-7 gap-2">
+          {weekDays.map((date, index) => {
+            const {
+              scheduleEvents: dayScheduleEvents,
+              tasks: dayTasks,
+              homework: dayHomework,
+            } = getEventsForDate(date)
+            const isToday = date.toDateString() === new Date().toDateString()
 
-              return (
-                <div key={index} className="space-y-2">
-                  <div className={`text-center p-2 rounded-lg ${isToday ? "bg-accent text-accent-foreground" : ""}`}>
-                    <div className="text-sm font-medium">{DAYS_SHORT[index]}</div>
-                    <div className="text-lg">{date.getDate()}</div>
-                  </div>
+            return (
+              <div key={index} className="space-y-2">
+                <div
+                  className={`text-center p-2 rounded-lg ${
+                    isToday ? "bg-accent text-accent-foreground" : ""
+                  }`}
+                >
+                  <div className="text-sm font-medium">{DAYS_SHORT[index]}</div>
+                  <div className="text-lg">{date.getDate()}</div>
+                </div>
 
-                  <div className="space-y-1">
-                    {dayScheduleEvents.map((event) => (
-                      <div
-                        key={event.id}
-                        className="text-xs p-1 rounded text-foreground"
-                        style={{ backgroundColor: event.color }}
-                      >
-                        {formatTime(event.startTime)} {event.title}
+                <div className="space-y-1">
+                  {/* Расписание */}
+                  {dayScheduleEvents.map((event) => (
+                    <div
+                      key={event.id}
+                      className="text-xs p-1 rounded text-foreground overflow-hidden"
+                      style={{ backgroundColor: event.color }}
+                    >
+                      <div className="text-[10px]">{formatTime(event.startTime)}</div>
+                      <div className="truncate" title={event.title}>
+                        {event.title}
                       </div>
-                    ))}
+                    </div>
+                  ))}
 
-                    {dayTasks.map((task) => {
-                      const calendar = getCalendarById(task.calendarId)
-                      return (
-                        <div
-                          key={task.id}
-                          className={`text-xs p-1 rounded border ${task.completed ? "opacity-60 line-through" : ""}`}
-                          style={{ backgroundColor: calendar?.color + "40", borderColor: calendar?.color }}
-                        >
+                  {/* Задачи */}
+                  {dayTasks.map((task) => {
+                    const calendar = getCalendarById(task.calendarId)
+                    return (
+                      <div
+                        key={task.id}
+                        className={`text-xs p-1 rounded border flex flex-col gap-1 ${
+                          task.completed ? "opacity-60 line-through" : ""
+                        }`}
+                        style={{
+                          backgroundColor: calendar?.color + "40",
+                          borderColor: calendar?.color,
+                        }}
+                      >
+                       <div className="flex items-center gap-2 min-w-0">
+                          <input
+                            type="checkbox"
+                            checked={task.completed}
+                            readOnly
+                            className="rounded flex-shrink-0"
+                          />
+                          <span className="text-[10px] truncate" title="Задача">
+                            Задача
+                          </span>
+                        </div>
+                        <div className="truncate" title={task.title}>
                           {task.title}
                         </div>
-                      )
-                    })}
+                      </div>
+                    )
+                  })}
 
-                    {dayHomework.map((hw) => {
-                      const scheduleEvent = getScheduleEventById(hw.scheduleEventId)
-                      return (
-                        <div
-                          key={hw.id}
-                          className={`text-xs p-1 rounded border-l-2 bg-muted ${hw.completed ? "opacity-60" : ""}`}
-                          style={{ borderLeftColor: scheduleEvent?.color }}
-                        >
-                          ДЗ: {hw.title}
+                  {/* Домашка */}
+                  {dayHomework.map((hw) => {
+                    const scheduleEvent = getScheduleEventById(hw.scheduleEventId)
+                    return (
+                      <div
+                        key={hw.id}
+                        className={`text-xs p-1 rounded border-l-2 bg-muted flex flex-col gap-1 ${
+                          hw.completed ? "opacity-60" : ""
+                        }`}
+                        style={{ borderLeftColor: scheduleEvent?.color }}
+                      >
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            checked={hw.completed}
+                            readOnly
+                            className="rounded flex-shrink-0"
+                          />
+                          <span className="text-[10px]">ДЗ</span>
                         </div>
-                      )
-                    })}
-                  </div>
+                        <div className="truncate" title={hw.title}>
+                          {hw.title}
+                        </div>
+                      </div>
+                    )
+                  })}
                 </div>
-              )
-            })}
-          </div>
-        </CardContent>
-      </Card>
-    )
-  }
+              </div>
+            )
+          })}
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
+
 
   const renderMonthView = () => {
     const year = currentDate.getFullYear()
@@ -557,17 +600,15 @@ export function CalendarViews({ currentWeek }: CalendarViewsProps) {
   return (
     <div className="space-y-6">
       {/* Navigation and Controls */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={() => navigateDate("prev")}>
-              <ChevronLeft className="w-4 h-4" />
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => navigateDate("next")}>
-              <ChevronRight className="w-4 h-4" />
-            </Button>
-          </div>
-
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        {/* Навигация по датам */}
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={() => navigateDate("prev")}>
+            <ChevronLeft className="w-4 h-4" />
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => navigateDate("next")}>
+            <ChevronRight className="w-4 h-4" />
+          </Button>
           <Button
             variant="outline"
             size="sm"
@@ -578,7 +619,8 @@ export function CalendarViews({ currentWeek }: CalendarViewsProps) {
           </Button>
         </div>
 
-        <div className="flex items-center gap-4">
+        {/* Фильтры и переключатель видов */}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
           {/* Calendar Filter */}
           <Select
             value={visibleCalendars.length === calendars.length ? "all" : visibleCalendars[0] || "all"}
@@ -590,7 +632,7 @@ export function CalendarViews({ currentWeek }: CalendarViewsProps) {
               }
             }}
           >
-            <SelectTrigger className="w-40 bg-input border-border">
+            <SelectTrigger className="w-full sm:w-40 bg-input border-border">
               <SelectValue />
             </SelectTrigger>
             <SelectContent className="bg-popover border-border">
@@ -607,12 +649,12 @@ export function CalendarViews({ currentWeek }: CalendarViewsProps) {
           </Select>
 
           {/* View Selector */}
-          <div className="flex rounded-lg border border-border bg-muted p-1">
+          <div className="flex justify-between sm:justify-start rounded-lg border border-border bg-muted p-1 w-full sm:w-auto">
             <Button
               variant={view === "day" ? "default" : "ghost"}
               size="sm"
               onClick={() => setView("day")}
-              className="text-xs"
+              className="text-xs flex-1 sm:flex-none"
             >
               День
             </Button>
@@ -620,7 +662,7 @@ export function CalendarViews({ currentWeek }: CalendarViewsProps) {
               variant={view === "week" ? "default" : "ghost"}
               size="sm"
               onClick={() => setView("week")}
-              className="text-xs"
+              className="text-xs flex-1 sm:flex-none"
             >
               Неделя
             </Button>
@@ -628,7 +670,7 @@ export function CalendarViews({ currentWeek }: CalendarViewsProps) {
               variant={view === "month" ? "default" : "ghost"}
               size="sm"
               onClick={() => setView("month")}
-              className="text-xs"
+              className="text-xs flex-1 sm:flex-none"
             >
               Месяц
             </Button>
