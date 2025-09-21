@@ -548,42 +548,55 @@ const renderWeekView = () => {
 
                   {hasEvents && (
                     <div className="space-y-1 mt-1">
+                      {/* Schedule events */}
                       {dayScheduleEvents.slice(0, 2).map((event) => (
                         <div
                           key={event.id}
-                          className="w-full h-1 rounded"
-                          style={{ backgroundColor: event.color }}
+                          className="text-[10px] p-1 rounded text-foreground truncate"
+                          style={{ backgroundColor: event.color + "40" }}
                           title={`${event.title} (${formatTime(event.startTime)})`}
-                        />
+                        >
+                          <div className="font-medium">{formatTime(event.startTime)}</div>
+                          <div className="truncate">{event.title}</div>
+                        </div>
                       ))}
 
+                      {/* Tasks */}
                       {dayTasks.slice(0, 2).map((task) => {
                         const calendar = getCalendarById(task.calendarId)
                         return (
                           <div
                             key={task.id}
-                            className={`w-full h-1 rounded ${task.completed ? "opacity-50" : ""}`}
-                            style={{ backgroundColor: calendar?.color }}
+                            className={`text-[10px] p-1 rounded border truncate ${
+                              task.completed ? "opacity-50 line-through" : ""
+                            }`}
+                            style={{ backgroundColor: calendar?.color + "30", borderColor: calendar?.color }}
                             title={task.title}
-                          />
+                          >
+                            <div className="truncate">{task.title}</div>
+                          </div>
                         )
                       })}
 
+                      {/* Homework */}
                       {dayHomework.slice(0, 1).map((hw) => {
                         const scheduleEvent = getScheduleEventById(hw.scheduleEventId)
                         return (
                           <div
                             key={hw.id}
-                            className="w-full h-1 rounded border"
-                            style={{ borderColor: scheduleEvent?.color, backgroundColor: scheduleEvent?.color + "40" }}
+                            className="text-[10px] p-1 rounded border-l-2 bg-muted truncate"
+                            style={{ borderLeftColor: scheduleEvent?.color }}
                             title={`ДЗ: ${hw.title}`}
-                          />
+                          >
+                            ДЗ: {hw.title}
+                          </div>
                         )
                       })}
 
-                      {dayScheduleEvents.length + dayTasks.length + dayHomework.length > 3 && (
-                        <div className="text-xs text-muted-foreground">
-                          +{dayScheduleEvents.length + dayTasks.length + dayHomework.length - 3}
+                      {/* More counter */}
+                      {dayScheduleEvents.length + dayTasks.length + dayHomework.length > 5 && (
+                        <div className="text-[10px] text-muted-foreground">
+                          +{dayScheduleEvents.length + dayTasks.length + dayHomework.length - 5}
                         </div>
                       )}
                     </div>
