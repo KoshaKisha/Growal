@@ -225,9 +225,21 @@ const handleDeleteCalendar = async (id: string) => {
     setIsCalendarDialogOpen(true)
   }
 
-  const toggleTaskCompletion = (id: string) => {
-    setTasks(tasks.map((t) => (t.id === id ? { ...t, completed: !t.completed } : t)))
+  const toggleTaskCompletion = async (id: string) => {
+  const task = tasks.find((t) => t.id === id)
+  if (!task) return
+
+  try {
+    const updated = await updateTask(id, {
+      ...task,
+      completed: !task.completed,
+    })
+    setTasks((prev) => prev.map((t) => (t.id === id ? updated : t)))
+  } catch (err) {
+    console.error("Ошибка при переключении статуса задачи:", err)
   }
+}
+
 
   const getCalendarById = (id: string) => {
     return calendars.find((c) => c.id === id)
