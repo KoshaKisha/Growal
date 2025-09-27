@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Plus, Edit, Trash2, BookOpen, Calendar, Clock, ArrowRight, CheckSquare } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -20,6 +20,21 @@ import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { Switch } from "@/components/ui/switch"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import {
+  getHomeworks,
+  createHomework,
+  updateHomework,
+  deleteHomework,
+  HomeworkForm,
+} from "@/lib/api/homework"
+import {
+  fetchTasks,
+  updateTask,
+  createTask,
+  deleteTask,
+  TaskForm
+} from "@/lib/api"
+import { fetchScheduleEvents } from "@/lib/api/schedule"
 
 interface ScheduleEvent {
   id: string
@@ -60,93 +75,18 @@ interface Task {
   homeworkId?: string
 }
 
-// Mock data for schedule events
-const MOCK_SCHEDULE_EVENTS: ScheduleEvent[] = [
-  {
-    id: "1",
-    title: "Математический анализ",
-    description: "Лекция по дифференциальному исчислению",
-    location: "Аудитория 205",
-    startTime: "09:00",
-    endTime: "10:30",
-    weekType: "both",
-    days: ["monday", "wednesday"],
-    color: "#f5f5dc",
-  },
-  {
-    id: "2",
-    title: "Программирование",
-    description: "Практические занятия по Python",
-    location: "Компьютерный класс",
-    startTime: "10:45",
-    endTime: "12:15",
-    weekType: "upper",
-    days: ["tuesday", "thursday"],
-    color: "#e0bbd4",
-  },
-  {
-    id: "3",
-    title: "Физика",
-    description: "Лабораторные работы",
-    location: "Лаборатория 101",
-    startTime: "13:00",
-    endTime: "14:30",
-    weekType: "lower",
-    days: ["friday"],
-    color: "#add8e6",
-  },
-]
-
 export function HomeworkManager() {
-  const [scheduleEvents] = useState<ScheduleEvent[]>(MOCK_SCHEDULE_EVENTS)
-  const [homeworkAssignments, setHomeworkAssignments] = useState<HomeworkAssignment[]>([
-    {
-      id: "1",
-      scheduleEventId: "1",
-      title: "Решить задачи по интегралам",
-      description: "Задачи 15-20 из учебника Демидовича",
-      notes: "Контрольная работа на следующей паре",
-      dueDate: "2025-09-22",
-      dueTime: "09:00",
-      isAllDay: false,
-      completed: false,
-      createdAt: "2025-09-18T10:00:00Z",
-      linkedTaskId: "hw-task-1",
-    },
-    {
-      id: "2",
-      scheduleEventId: "2",
-      title: "Написать программу сортировки",
-      description: "Реализовать алгоритм быстрой сортировки на Python",
-      notes: "Сдача через GitHub",
-      dueDate: "2025-09-25",
-      isAllDay: true,
-      completed: true,
-      createdAt: "2025-09-17T14:00:00Z",
-    },
-  ])
-
-  const [tasks, setTasks] = useState<Task[]>([
-    {
-      id: "hw-task-1",
-      title: "Решить задачи по интегралам",
-      description: "Задачи 15-20 из учебника Демидовича",
-      date: "2025-09-22",
-      time: "09:00",
-      isAllDay: false,
-      calendarId: "3", // Учеба
-      completed: false,
-      createdAt: "2025-09-18T10:00:00Z",
-      homeworkId: "1",
-    },
-  ])
+  const [scheduleEvents, setScheduleEvents] = useState<ScheduleEvent[]>([])
+  const [homeworkAssignments, setHomeworkAssignments] = useState<HomeworkAssignment[]>([])
+  const [tasks, setTasks] = useState<Task[]>([])
+  const [loading, setLoading] = useState(true)
 
   const [isHomeworkDialogOpen, setIsHomeworkDialogOpen] = useState(false)
   const [isTaskCreationDialogOpen, setIsTaskCreationDialogOpen] = useState(false)
   const [editingHomework, setEditingHomework] = useState<HomeworkAssignment | null>(null)
   const [selectedHomeworkForTask, setSelectedHomeworkForTask] = useState<HomeworkAssignment | null>(null)
 
-  const [homeworkForm, setHomeworkForm] = useState({
+  const [homeworkForm, setHomeworkForm] = useState<HomeworkForm>({
     scheduleEventId: "",
     title: "",
     description: "",
@@ -156,7 +96,7 @@ export function HomeworkManager() {
     isAllDay: false,
   })
 
-  const [taskForm, setTaskForm] = useState({
+  const [taskForm, setTaskForm] = useState<TaskForm>({
     title: "",
     description: "",
     date: "",
@@ -164,159 +104,154 @@ export function HomeworkManager() {
     isAllDay: false,
   })
 
-  const handleHomeworkSubmit = () => {
-    if (!homeworkForm.scheduleEventId || !homeworkForm.title || !homeworkForm.dueDate) {
-      return
+  useEffect(() => {
+    async function loadData() {
+      setLoading(true)
+      try {
+        const hw = await getHomeworks()
+        const ts = await fetchTasks()
+        const se = await fetchScheduleEvents()
+        setHomeworkAssignments(hw)
+        setTasks(ts)
+        setScheduleEvents(se)
+      } catch (err) {
+        console.error("Ошибка при загрузке данных:", err)
+      } finally {
+        setLoading(false)
+      }
     }
+    loadData()
+  }, [])
 
-    const newHomework: HomeworkAssignment = {
-      id: editingHomework?.id || Date.now().toString(),
-      scheduleEventId: homeworkForm.scheduleEventId,
-      title: homeworkForm.title,
-      description: homeworkForm.description,
-      notes: homeworkForm.notes,
-      dueDate: homeworkForm.dueDate,
-      dueTime: homeworkForm.isAllDay ? undefined : homeworkForm.dueTime,
-      isAllDay: homeworkForm.isAllDay,
-      completed: editingHomework?.completed || false,
-      createdAt: editingHomework?.createdAt || new Date().toISOString(),
-      linkedTaskId: editingHomework?.linkedTaskId,
-    }
+  const handleHomeworkSubmit = async () => {
+  if (!homeworkForm.scheduleEventId || !homeworkForm.title || !homeworkForm.dueDate) return
 
+  // Преобразуем дату в ISO перед отправкой
+  const isoDueDate = homeworkForm.isAllDay
+    ? new Date(homeworkForm.dueDate).toISOString()
+    : new Date(`${homeworkForm.dueDate}T${homeworkForm.dueTime || "00:00"}`).toISOString()
+
+  const payload = {
+    ...homeworkForm,
+    dueDate: isoDueDate,
+  }
+
+  try {
     if (editingHomework) {
-      setHomeworkAssignments(homeworkAssignments.map((h) => (h.id === editingHomework.id ? newHomework : h)))
+      const updated = await updateHomework(editingHomework.id, payload)
+      setHomeworkAssignments((prev) => prev.map((h) => (h.id === editingHomework.id ? updated : h)))
     } else {
-      setHomeworkAssignments([...homeworkAssignments, newHomework])
-      // Auto-suggest task creation
-      setSelectedHomeworkForTask(newHomework)
+      const created = await createHomework(payload)
+      setHomeworkAssignments((prev) => [...prev, created])
+      setSelectedHomeworkForTask(created)
       setTaskForm({
-        title: newHomework.title,
-        description: newHomework.description,
-        date: newHomework.dueDate,
-        time: newHomework.dueTime || "",
-        isAllDay: newHomework.isAllDay,
+        title: created.title,
+        description: created.description,
+        date: created.dueDate,
+        time: created.dueTime || "",
+        isAllDay: created.isAllDay,
       })
       setIsTaskCreationDialogOpen(true)
     }
-
+  } catch (err) {
+    console.error("Ошибка при сохранении ДЗ:", err)
+  } finally {
     resetHomeworkForm()
   }
+}
 
-  const handleTaskCreation = () => {
-    if (!selectedHomeworkForTask || !taskForm.title || !taskForm.date) {
-      return
+  const handleTaskCreation = async () => {
+    if (!selectedHomeworkForTask || !taskForm.title || !taskForm.date) return
+
+    try {
+      const newTask = await createTask({ ...taskForm, homeworkId: selectedHomeworkForTask.id })
+      setTasks((prev) => [...prev, newTask])
+      // обновим ссылку в ДЗ
+      setHomeworkAssignments((prev) =>
+        prev.map((h) => (h.id === selectedHomeworkForTask.id ? { ...h, linkedTaskId: newTask.id } : h)),
+      )
+    } catch (err) {
+      console.error("Ошибка при создании задачи:", err)
+    } finally {
+      resetTaskForm()
     }
+  }
+  const handleEditHomework = (homework: HomeworkAssignment) => {
+  setEditingHomework(homework)
 
-    const newTask: Task = {
-      id: Date.now().toString(),
-      title: taskForm.title,
-      description: taskForm.description,
-      date: taskForm.date,
-      time: taskForm.isAllDay ? undefined : taskForm.time,
-      isAllDay: taskForm.isAllDay,
-      calendarId: "3", // Default to "Учеба" calendar
-      completed: false,
-      createdAt: new Date().toISOString(),
-      homeworkId: selectedHomeworkForTask.id,
+  const isoDueDate = homework.isAllDay
+    ? new Date(homework.dueDate).toISOString()
+    : new Date(`${homework.dueDate}T${homework.dueTime || "00:00"}`).toISOString()
+
+  setHomeworkForm({
+    scheduleEventId: homework.scheduleEventId,
+    title: homework.title,
+    description: homework.description,
+    notes: homework.notes,
+    dueDate: isoDueDate,
+    dueTime: homework.dueTime || "",
+    isAllDay: homework.isAllDay,
+  })
+
+  setIsHomeworkDialogOpen(true)
+}
+
+  const handleDeleteHomeworkClick = async (id: string) => {
+    const hw = homeworkAssignments.find((h) => h.id === id)
+    try {
+      await deleteHomework(id)
+      setHomeworkAssignments((prev) => prev.filter((h) => h.id !== id))
+      if (hw?.linkedTaskId) {
+        await deleteTask(hw.linkedTaskId)
+        setTasks((prev) => prev.filter((t) => t.id !== hw.linkedTaskId))
+      }
+    } catch (err) {
+      console.error("Ошибка при удалении ДЗ:", err)
     }
-
-    setTasks([...tasks, newTask])
-
-    // Update homework with linked task
-    setHomeworkAssignments(
-      homeworkAssignments.map((h) => (h.id === selectedHomeworkForTask.id ? { ...h, linkedTaskId: newTask.id } : h)),
-    )
-
-    resetTaskForm()
   }
 
+  const toggleHomeworkCompletion = async (id: string) => {
+    const hw = homeworkAssignments.find((h) => h.id === id)
+    if (!hw) return
+    try {
+      const updated = await updateHomework(id, { completed: !hw.completed })
+      setHomeworkAssignments((prev) => prev.map((h) => (h.id === id ? updated : h)))
+      if (hw.linkedTaskId) {
+        const updatedTask = await updateTask(hw.linkedTaskId, { completed: !hw.completed })
+        setTasks((prev) => prev.map((t) => (t.id === hw.linkedTaskId ? updatedTask : t)))
+      }
+    } catch (err) {
+      console.error("Ошибка при переключении статуса:", err)
+    }
+  }
+
+  const getNextOccurrence = (scheduleEvent: ScheduleEvent) => {
+  // Пока оставим простой мок
+  const today = new Date()
+  const nextWeek = new Date(today)
+  nextWeek.setDate(today.getDate() + 7)
+  return nextWeek.toISOString().split("T")[0]
+}
+
+
   const resetHomeworkForm = () => {
-    setHomeworkForm({
-      scheduleEventId: "",
-      title: "",
-      description: "",
-      notes: "",
-      dueDate: "",
-      dueTime: "",
-      isAllDay: false,
-    })
+    setHomeworkForm({ scheduleEventId: "", title: "", description: "", notes: "", dueDate: "", dueTime: "", isAllDay: false })
     setEditingHomework(null)
     setIsHomeworkDialogOpen(false)
   }
 
   const resetTaskForm = () => {
-    setTaskForm({
-      title: "",
-      description: "",
-      date: "",
-      time: "",
-      isAllDay: false,
-    })
+    setTaskForm({ title: "", description: "", date: "", time: "", isAllDay: false })
     setSelectedHomeworkForTask(null)
     setIsTaskCreationDialogOpen(false)
   }
 
-  const handleEditHomework = (homework: HomeworkAssignment) => {
-    setEditingHomework(homework)
-    setHomeworkForm({
-      scheduleEventId: homework.scheduleEventId,
-      title: homework.title,
-      description: homework.description,
-      notes: homework.notes,
-      dueDate: homework.dueDate,
-      dueTime: homework.dueTime || "",
-      isAllDay: homework.isAllDay,
-    })
-    setIsHomeworkDialogOpen(true)
-  }
+  const getScheduleEventById = (id: string) => scheduleEvents.find((e) => e.id === id)
+  const getLinkedTask = (homeworkId: string) => tasks.find((t) => t.homeworkId === homeworkId)
+  const formatDate = (dateString: string) => new Date(dateString).toLocaleDateString("ru-RU", { day: "numeric", month: "long", year: "numeric" })
+  const formatTime = (timeString: string) => timeString?.slice(0, 5)
 
-  const handleDeleteHomework = (id: string) => {
-    const homework = homeworkAssignments.find((h) => h.id === id)
-    if (homework?.linkedTaskId) {
-      // Also delete linked task
-      setTasks(tasks.filter((t) => t.id !== homework.linkedTaskId))
-    }
-    setHomeworkAssignments(homeworkAssignments.filter((h) => h.id !== id))
-  }
-
-  const toggleHomeworkCompletion = (id: string) => {
-    setHomeworkAssignments(homeworkAssignments.map((h) => (h.id === id ? { ...h, completed: !h.completed } : h)))
-
-    // Also toggle linked task if exists
-    const homework = homeworkAssignments.find((h) => h.id === id)
-    if (homework?.linkedTaskId) {
-      setTasks(tasks.map((t) => (t.id === homework.linkedTaskId ? { ...t, completed: !t.completed } : t)))
-    }
-  }
-
-  const getScheduleEventById = (id: string) => {
-    return scheduleEvents.find((e) => e.id === id)
-  }
-
-  const getLinkedTask = (homeworkId: string) => {
-    return tasks.find((t) => t.homeworkId === homeworkId)
-  }
-
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString)
-    return date.toLocaleDateString("ru-RU", {
-      day: "numeric",
-      month: "long",
-      year: "numeric",
-    })
-  }
-
-  const formatTime = (timeString: string) => {
-    return timeString.slice(0, 5)
-  }
-
-  const getNextOccurrence = (scheduleEvent: ScheduleEvent) => {
-    // Mock calculation - in real app, this would calculate based on current week type and schedule
-    const today = new Date()
-    const nextWeek = new Date(today)
-    nextWeek.setDate(today.getDate() + 7)
-    return nextWeek.toISOString().split("T")[0]
-  }
+  if (loading) return <div>Загрузка...</div>
 
   return (
     <div className="space-y-6">
@@ -679,7 +614,7 @@ export function HomeworkManager() {
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => handleDeleteHomework(homework.id)}
+                        onClick={() => handleDeleteHomeworkClick(homework.id)}
                         className="text-muted-foreground hover:text-destructive"
                       >
                         <Trash2 className="w-4 h-4" />
