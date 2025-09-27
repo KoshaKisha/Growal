@@ -71,3 +71,15 @@ export async function deleteCalendar(id: string) {
   if (!res.ok) throw new Error("Ошибка удаления календаря")
   return res.json()
 }
+
+export async function fetchScheduleEvents() {
+  const res = await fetch("/api/scheduleEvents", { cache: "no-store", credentials: "include" })
+  if (!res.ok) throw new Error("Ошибка загрузки расписания")
+  return res.json()
+}
+
+export async function fetchHomework() {
+  const res = await fetch("/api/homework", { cache: "no-store", credentials: "include" })
+  if (!res.ok) throw new Error("Ошибка загрузки домашних заданий")
+  return res.json()
+}
