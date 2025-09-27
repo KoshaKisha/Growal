@@ -1,3 +1,11 @@
+export interface TaskForm {
+  title: string
+  description?: string
+  date: string
+  time?: string
+  isAllDay: boolean
+}
+
 export async function updateTask(id: string, data: any) {
   const res = await fetch(`/api/tasks/${id}`, {
     method: "PUT",
