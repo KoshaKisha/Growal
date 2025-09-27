@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Plus, Edit, Trash2, Clock, MapPin } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -19,6 +19,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
+import {
+  fetchScheduleEvents,
+  createScheduleEvent,
+  updateScheduleEvent,
+  deleteScheduleEvent,
+} from "@/lib/api/schedule"
 
 interface ScheduleEvent {
   id: string
@@ -52,42 +58,8 @@ const DAYS = [
 ]
 
 export function ScheduleManager() {
-  const [events, setEvents] = useState<ScheduleEvent[]>([
-    {
-      id: "1",
-      title: "Математический анализ",
-      description: "Лекция по дифференциальному исчислению",
-      location: "Аудитория 205",
-      startTime: "09:00",
-      endTime: "10:30",
-      weekType: "both",
-      days: ["monday", "wednesday"],
-      color: "#f5f5dc",
-    },
-    {
-      id: "2",
-      title: "Программирование",
-      description: "Практические занятия по Python",
-      location: "Компьютерный класс",
-      startTime: "10:45",
-      endTime: "12:15",
-      weekType: "upper",
-      days: ["tuesday", "thursday"],
-      color: "#e0bbd4",
-    },
-    {
-      id: "3",
-      title: "Физика",
-      description: "Лабораторные работы",
-      location: "Лаборатория 101",
-      startTime: "13:00",
-      endTime: "14:30",
-      weekType: "lower",
-      days: ["friday"],
-      color: "#add8e6",
-    },
-  ])
-
+  const [events, setEvents] = useState<ScheduleEvent[]>([])
+  const [isLoading, setIsLoading] = useState(true)
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [editingEvent, setEditingEvent] = useState<ScheduleEvent | null>(null)
   const [formData, setFormData] = useState({
@@ -101,25 +73,21 @@ export function ScheduleManager() {
     color: COLORS[0].value,
   })
 
-  const handleSubmit = () => {
-    if (!formData.title || !formData.startTime || !formData.endTime || formData.days.length === 0) {
-      return
+   const loadEvents = async () => {
+    setIsLoading(true)
+    try {
+      const data = await fetchScheduleEvents()
+      setEvents(data)
+    } finally {
+      setIsLoading(false)
     }
-
-    const newEvent: ScheduleEvent = {
-      id: editingEvent?.id || Date.now().toString(),
-      ...formData,
-    }
-
-    if (editingEvent) {
-      setEvents(events.map((e) => (e.id === editingEvent.id ? newEvent : e)))
-    } else {
-      setEvents([...events, newEvent])
-    }
-
-    resetForm()
   }
 
+  useEffect(() => {
+    loadEvents()
+  }, [])
+
+  // Сброс формы
   const resetForm = () => {
     setFormData({
       title: "",
@@ -135,25 +103,42 @@ export function ScheduleManager() {
     setIsDialogOpen(false)
   }
 
+  // Создание или редактирование события
+  const handleSubmit = async () => {
+    if (!formData.title || !formData.startTime || !formData.endTime || formData.days.length === 0) return
+
+    try {
+      if (editingEvent) {
+        await updateScheduleEvent(editingEvent.id, formData)
+      } else {
+        await createScheduleEvent(formData)
+      }
+      await loadEvents()
+      resetForm()
+    } catch (err) {
+      console.error("Ошибка при сохранении события:", err)
+    }
+  }
+
+  // Редактирование события
   const handleEdit = (event: ScheduleEvent) => {
     setEditingEvent(event)
-    setFormData({
-      title: event.title,
-      description: event.description,
-      location: event.location,
-      startTime: event.startTime,
-      endTime: event.endTime,
-      weekType: event.weekType,
-      days: event.days,
-      color: event.color,
-    })
+    setFormData({ ...event })
     setIsDialogOpen(true)
   }
 
-  const handleDelete = (id: string) => {
-    setEvents(events.filter((e) => e.id !== id))
+  // Удаление события
+  const handleDelete = async (id: string) => {
+    if (!confirm("Удалить событие?")) return
+    try {
+      await deleteScheduleEvent(id)
+      setEvents((prev) => prev.filter((e) => e.id !== id))
+    } catch (err) {
+      console.error("Ошибка при удалении события:", err)
+    }
   }
 
+  // Переключение дней недели
   const handleDayToggle = (dayId: string) => {
     setFormData((prev) => ({
       ...prev,
@@ -163,16 +148,11 @@ export function ScheduleManager() {
 
   const getWeekTypeLabel = (weekType: string) => {
     switch (weekType) {
-      case "both":
-        return "Каждая неделя"
-      case "upper":
-        return "Верхняя неделя"
-      case "lower":
-        return "Нижняя неделя"
-      case "custom":
-        return "Произвольный цикл"
-      default:
-        return weekType
+      case "both": return "Каждая неделя"
+      case "upper": return "Верхняя неделя"
+      case "lower": return "Нижняя неделя"
+      case "custom": return "Произвольный цикл"
+      default: return weekType
     }
   }
 
