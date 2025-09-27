@@ -9,7 +9,9 @@ import "./globals.css"
 export const metadata: Metadata = {
   title: "Grow - Task Planning App",
   description: "Comprehensive task planning app for students and teachers",
-  generator: "v0.app",
+  icons: {
+    icon: "/health.ico",
+  },
 }
 
 export default function RootLayout({
