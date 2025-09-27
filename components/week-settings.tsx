@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
 import { Plus, X } from "lucide-react"
+import { saveWeekSettings } from "@/lib/api/week-settings"
 
 interface WeekSettingsProps {
   weekType: "alternating" | "custom" | "none"
@@ -132,6 +133,20 @@ export function WeekSettings({
             </div>
           )}
         </CardContent>
+        <Button
+  onClick={async () => {
+    try {
+      await saveWeekSettings({ weekType, weekInterval, customWeekNames })
+    } catch (err) {
+      console.error(err)
+      alert("Ошибка сохранения")
+    }
+  }}
+  className="bg-accent text-accent-foreground hover:bg-accent/90"
+>
+  Сохранить настройки
+</Button>
+
       </Card>
     </div>
   )

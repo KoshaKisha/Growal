@@ -1,18 +1,20 @@
 "use client"
 
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
 import { X, Calendar, CheckSquare, BookOpen, Settings, Sparkles } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { getWeekSettings } from "@/lib/api/week-settings";
 
 interface MobileSidebarProps {
   isOpen: boolean
   onClose: () => void
   activeSection: string
   setActiveSection: (section: string) => void
-  currentWeek: string
-  setCurrentWeek: (week: "upper" | "lower") => void
+}
+
+interface WeekSettings {
   weekType: "alternating" | "custom" | "none"
   customWeekNames: string[]
   weekInterval: number
@@ -23,25 +25,34 @@ export function MobileSidebar({
   onClose,
   activeSection,
   setActiveSection,
-  currentWeek,
-  setCurrentWeek,
-  weekType,
-  customWeekNames,
-  weekInterval,
 }: MobileSidebarProps) {
+  const [weekSettings, setWeekSettings] = useState<WeekSettings>({
+    weekType: "none",
+    customWeekNames: [],
+    weekInterval: 1,
+  })
+  const [currentWeekIndex, setCurrentWeekIndex] = useState(0)
+
+  useEffect(() => {
+  async function fetchSettings() {
+    try {
+      const data = await getWeekSettings();
+      setWeekSettings(data);
+    } catch (err) {
+      console.error(err);
+    }
+  }
+  fetchSettings();
+}, []);
+
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       const sidebar = document.getElementById("mobile-sidebar")
-
-      if (isOpen && sidebar && !sidebar.contains(event.target as Node)) {
-        onClose()
-      }
+      if (isOpen && sidebar && !sidebar.contains(event.target as Node)) onClose()
     }
 
     const handleEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape" && isOpen) {
-        onClose()
-      }
+      if (event.key === "Escape" && isOpen) onClose()
     }
 
     if (isOpen) {
@@ -58,19 +69,19 @@ export function MobileSidebar({
   }, [isOpen, onClose])
 
   const getWeekDisplay = () => {
-    if (weekType === "none") return "Обычная неделя"
-    if (weekType === "custom" && customWeekNames.length > 0) {
-      const weekIndex = currentWeek === "upper" ? 0 : 1
-      return customWeekNames[weekIndex] || "Неделя"
-    }
-    return currentWeek === "upper" ? "Верхняя неделя" : "Нижняя неделя"
+  const { weekType, customWeekNames } = weekSettings
+  if (weekType === "none") return "Обычная неделя"
+  if (weekType === "custom" && customWeekNames.length > 0) {
+    return customWeekNames[currentWeekIndex % customWeekNames.length]
   }
+  return currentWeekIndex % 2 === 0 ? "Верхняя неделя" : "Нижняя неделя"
+}
 
   const handleSectionChange = (section: string) => {
     setActiveSection(section)
     onClose()
   }
-
+  console.log("weekSettings", weekSettings)
   return (
     <>
       {isOpen && (
@@ -107,7 +118,7 @@ export function MobileSidebar({
           </div>
 
           <div className="flex-1 overflow-y-auto p-4 space-y-4">
-            {weekType !== "none" && (
+            {weekSettings.weekType !== "none" && (
               <Card className="bg-gradient-to-br from-sidebar-primary/20 to-sidebar-accent/10 border-sidebar-border card-hover">
                 <CardHeader className="pb-2">
                   <CardTitle className="text-sm text-sidebar-foreground flex items-center gap-2">
@@ -126,7 +137,9 @@ export function MobileSidebar({
                     variant="outline"
                     size="sm"
                     className="w-full text-sidebar-foreground border-sidebar-border bg-transparent hover:bg-primary/10 rounded-xl transition-all duration-200 hover:scale-105"
-                    onClick={() => setCurrentWeek(currentWeek === "upper" ? "lower" : "upper")}
+                    onClick={() =>
+                      setCurrentWeekIndex((prev) => (prev + 1) % weekSettings.customWeekNames.length)
+                    }
                   >
                     Переключить
                   </Button>
