@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
-import { Plus, X } from "lucide-react"
+import { Plus, X, Save } from "lucide-react"
 import { saveWeekSettings } from "@/lib/api/week-settings"
 
 interface WeekSettingsProps {
@@ -132,21 +132,23 @@ export function WeekSettings({
               )}
             </div>
           )}
+          <div className="flex justify-end pt-4 border-t border-border">
+              <Button
+                onClick={async () => {
+                  try {
+                    await saveWeekSettings({ weekType, weekInterval, customWeekNames })
+                  } catch (err) {
+                    console.error(err)
+                    alert("Ошибка сохранения")
+                  }
+                }}
+                className="bg-gradient-to-r from-[#efce7b] to-[#cbd183] text-[#2b2b23] hover:from-[#cbd183] hover:to-[#efce7b] font-medium px-6 py-2 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 flex items-center gap-2 w-auto"
+              >
+                <Save className="w-4 h-4" />
+                Сохранить настройки
+              </Button>
+            </div>
         </CardContent>
-        <Button
-  onClick={async () => {
-    try {
-      await saveWeekSettings({ weekType, weekInterval, customWeekNames })
-    } catch (err) {
-      console.error(err)
-      alert("Ошибка сохранения")
-    }
-  }}
-  className="bg-accent text-accent-foreground hover:bg-accent/90"
->
-  Сохранить настройки
-</Button>
-
       </Card>
     </div>
   )
