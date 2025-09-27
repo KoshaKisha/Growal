@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Plus, Edit, Trash2, Calendar, Clock, Tag, Check } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -20,6 +20,16 @@ import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Switch } from "@/components/ui/switch"
+import {
+  fetchCalendars, 
+  fetchTasks,
+  createCalendar, 
+  createTask,
+  updateCalendar,
+  updateTask,
+  deleteCalendar,
+  deleteTask
+} from "@/lib/api"
 
 interface TaskCalendar {
   id: string
@@ -39,13 +49,6 @@ interface Task {
   createdAt: string
 }
 
-const DEFAULT_CALENDARS: TaskCalendar[] = [
-  { id: "1", name: "Работа", color: "#f5f5dc" },
-  { id: "2", name: "Личное", color: "#e0bbd4" },
-  { id: "3", name: "Учеба", color: "#add8e6" },
-  { id: "4", name: "Спорт", color: "#ff6f61" },
-]
-
 const COLORS = [
   { name: "Бежевый", value: "#f5f5dc" },
   { name: "Розовый", value: "#e0bbd4" },
@@ -58,41 +61,21 @@ const COLORS = [
 ]
 
 export function TaskManager() {
-  const [calendars, setCalendars] = useState<TaskCalendar[]>(DEFAULT_CALENDARS)
-  const [tasks, setTasks] = useState<Task[]>([
-    {
-      id: "1",
-      title: "Подготовить презентацию",
-      description: "Создать слайды для защиты проекта",
-      date: "2025-09-19",
-      time: "14:00",
-      isAllDay: false,
-      calendarId: "3",
-      completed: false,
-      createdAt: "2025-09-18T10:00:00Z",
-    },
-    {
-      id: "2",
-      title: "Купить продукты",
-      description: "Молоко, хлеб, овощи для ужина",
-      date: "2025-09-19",
-      isAllDay: true,
-      calendarId: "2",
-      completed: false,
-      createdAt: "2025-09-18T12:00:00Z",
-    },
-    {
-      id: "3",
-      title: "Встреча с командой",
-      description: "Обсуждение планов на следующий спринт",
-      date: "2025-09-20",
-      time: "10:00",
-      isAllDay: false,
-      calendarId: "1",
-      completed: true,
-      createdAt: "2025-09-17T15:00:00Z",
-    },
-  ])
+  const [calendars, setCalendars] = useState<TaskCalendar[]>([])
+  const [tasks, setTasks] = useState<Task[]>([])
+
+  useEffect(() => {
+    async function loadData() {
+      try {
+        const [cals, tks] = await Promise.all([fetchCalendars(), fetchTasks()])
+        setCalendars(cals)
+        setTasks(tks)
+      } catch (err) {
+        console.error("Ошибка загрузки:", err)
+      }
+    }
+    loadData()
+  }, [])
 
   const [isTaskDialogOpen, setIsTaskDialogOpen] = useState(false)
   const [isCalendarDialogOpen, setIsCalendarDialogOpen] = useState(false)
@@ -115,51 +98,88 @@ export function TaskManager() {
     color: COLORS[0].value,
   })
 
-  const handleTaskSubmit = () => {
-    if (!taskForm.title || !taskForm.date || !taskForm.calendarId) {
-      return
-    }
+  const handleCalendarSubmit = async () => {
+  if (!calendarForm.name) return
 
-    const newTask: Task = {
-      id: editingTask?.id || Date.now().toString(),
-      title: taskForm.title,
-      description: taskForm.description,
-      date: taskForm.date,
-      time: taskForm.isAllDay ? undefined : taskForm.time,
-      isAllDay: taskForm.isAllDay,
-      calendarId: taskForm.calendarId,
-      completed: editingTask?.completed || false,
-      createdAt: editingTask?.createdAt || new Date().toISOString(),
-    }
-
-    if (editingTask) {
-      setTasks(tasks.map((t) => (t.id === editingTask.id ? newTask : t)))
-    } else {
-      setTasks([...tasks, newTask])
-    }
-
-    resetTaskForm()
-  }
-
-  const handleCalendarSubmit = () => {
-    if (!calendarForm.name) {
-      return
-    }
-
-    const newCalendar: TaskCalendar = {
-      id: editingCalendar?.id || Date.now().toString(),
-      name: calendarForm.name,
-      color: calendarForm.color,
-    }
-
+  try {
     if (editingCalendar) {
-      setCalendars(calendars.map((c) => (c.id === editingCalendar.id ? newCalendar : c)))
+      // обновление календаря
+      const updated = await updateCalendar(editingCalendar.id, {
+        name: calendarForm.name,
+        color: calendarForm.color,
+      })
+      setCalendars(calendars.map((c) => (c.id === editingCalendar.id ? updated : c)))
     } else {
-      setCalendars([...calendars, newCalendar])
+      // создание календаря
+      const created = await createCalendar({
+        name: calendarForm.name,
+        color: calendarForm.color,
+      })
+      setCalendars([...calendars, created])
     }
-
     resetCalendarForm()
+  } catch (err) {
+    console.error("Ошибка сохранения календаря:", err)
   }
+}
+
+const handleTaskSubmit = async () => {
+  if (!taskForm.title || !taskForm.date || !taskForm.calendarId) return
+
+  try {
+    if (editingTask) {
+      // обновление задачи
+      const updated = await updateTask(editingTask.id, {
+        title: taskForm.title,
+        description: taskForm.description,
+        date: taskForm.date,
+        time: taskForm.isAllDay ? null : taskForm.time,
+        isAllDay: taskForm.isAllDay,
+        calendarId: taskForm.calendarId,
+      })
+      setTasks(tasks.map((t) => (t.id === editingTask.id ? updated : t)))
+    } else {
+      // создание новой задачи
+      const created = await createTask({
+        title: taskForm.title,
+        description: taskForm.description,
+        date: taskForm.date,
+        time: taskForm.isAllDay ? null : taskForm.time,
+        isAllDay: taskForm.isAllDay,
+        calendarId: taskForm.calendarId,
+      })
+      setTasks([...tasks, created])
+    }
+    resetTaskForm()
+  } catch (err) {
+    console.error("Ошибка сохранения задачи:", err)
+  }
+}
+
+const handleDeleteTask = async (id: string) => {
+  try {
+    await deleteTask(id)
+    setTasks(tasks.filter((t) => t.id !== id))
+  } catch (err) {
+    console.error("Ошибка удаления задачи:", err)
+  }
+}
+
+const handleDeleteCalendar = async (id: string) => {
+  const hasTasksInCalendar = tasks.some((t) => t.calendarId === id)
+  if (hasTasksInCalendar) {
+    alert("Нельзя удалить календарь, в котором есть задачи")
+    return
+  }
+
+  try {
+    await deleteCalendar(id)
+    setCalendars(calendars.filter((c) => c.id !== id))
+  } catch (err) {
+    console.error("Ошибка удаления календаря:", err)
+  }
+}
+
 
   const resetTaskForm = () => {
     setTaskForm({
@@ -203,20 +223,6 @@ export function TaskManager() {
       color: calendar.color,
     })
     setIsCalendarDialogOpen(true)
-  }
-
-  const handleDeleteTask = (id: string) => {
-    setTasks(tasks.filter((t) => t.id !== id))
-  }
-
-  const handleDeleteCalendar = (id: string) => {
-    // Don't delete if there are tasks using this calendar
-    const hasTasksInCalendar = tasks.some((t) => t.calendarId === id)
-    if (hasTasksInCalendar) {
-      alert("Нельзя удалить календарь, в котором есть задачи")
-      return
-    }
-    setCalendars(calendars.filter((c) => c.id !== id))
   }
 
   const toggleTaskCompletion = (id: string) => {

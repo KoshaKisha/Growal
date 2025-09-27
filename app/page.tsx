@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
-import { getCurrentUser } from "@/lib/server/auth/auth-client"
+import { getCurrentUser } from "@/lib/client/auth/auth-get"
 import LandingPageForm from "@/components/LendingPage"
 export default function LandingPage() {
   const router = useRouter()
