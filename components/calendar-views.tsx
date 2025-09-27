@@ -1,6 +1,7 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
+import { fetchCalendars, fetchTasks, fetchScheduleEvents, fetchHomework } from "@/lib/api"
 import { ChevronLeft, ChevronRight, Calendar, Clock, MapPin, BookOpen, CheckSquare } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -52,99 +53,6 @@ interface TaskCalendar {
   color: string
 }
 
-// Mock data
-const MOCK_SCHEDULE_EVENTS: ScheduleEvent[] = [
-  {
-    id: "1",
-    title: "Математический анализ",
-    description: "Лекция по дифференциальному исчислению",
-    location: "Аудитория 205",
-    startTime: "09:00",
-    endTime: "10:30",
-    weekType: "both",
-    days: ["monday", "wednesday", "friday"],
-    color: "#f5f5dc",
-  },
-  {
-    id: "2",
-    title: "Программирование",
-    description: "Практические занятия по Python",
-    location: "Компьютерный класс",
-    startTime: "10:45",
-    endTime: "12:15",
-    weekType: "upper",
-    days: ["tuesday", "thursday"],
-    color: "#e0bbd4",
-  },
-  {
-    id: "3",
-    title: "Физика",
-    description: "Лабораторные работы",
-    location: "Лаборатория 101",
-    startTime: "13:00",
-    endTime: "14:30",
-    weekType: "lower",
-    days: ["tuesday", "friday"],
-    color: "#add8e6",
-  },
-]
-
-const MOCK_TASKS: Task[] = [
-  {
-    id: "1",
-    title: "Подготовить презентацию",
-    description: "Создать слайды для защиты проекта",
-    date: "2025-09-19",
-    time: "14:00",
-    isAllDay: false,
-    calendarId: "3",
-    completed: false,
-    createdAt: "2025-09-18T10:00:00Z",
-  },
-  {
-    id: "2",
-    title: "Купить продукты",
-    description: "Молоко, хлеб, овощи для ужина",
-    date: "2025-09-19",
-    isAllDay: true,
-    calendarId: "2",
-    completed: false,
-    createdAt: "2025-09-18T12:00:00Z",
-  },
-  {
-    id: "3",
-    title: "Встреча с командой",
-    description: "Обсуждение планов на следующий спринт",
-    date: "2025-09-20",
-    time: "10:00",
-    isAllDay: false,
-    calendarId: "1",
-    completed: true,
-    createdAt: "2025-09-17T15:00:00Z",
-  },
-]
-
-const MOCK_HOMEWORK: HomeworkAssignment[] = [
-  {
-    id: "1",
-    scheduleEventId: "1",
-    title: "Решить задачи по интегралам",
-    description: "Задачи 15-20 из учебника Демидовича",
-    notes: "Контрольная работа на следующей паре",
-    dueDate: "2025-09-22",
-    dueTime: "09:00",
-    isAllDay: false,
-    completed: false,
-    createdAt: "2025-09-18T10:00:00Z",
-  },
-]
-
-const MOCK_CALENDARS: TaskCalendar[] = [
-  { id: "1", name: "Работа", color: "#f5f5dc" },
-  { id: "2", name: "Личное", color: "#e0bbd4" },
-  { id: "3", name: "Учеба", color: "#add8e6" },
-]
-
 const DAYS_OF_WEEK = ["Понедельник", "Вторник", "Среда", "Четверг", "Пятница", "Суббота", "Воскресенье"]
 const DAYS_SHORT = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"]
 const MONTHS = [
@@ -167,14 +75,34 @@ interface CalendarViewsProps {
 }
 
 export function CalendarViews({ currentWeek }: CalendarViewsProps) {
-  const [currentDate, setCurrentDate] = useState(new Date(2025, 8, 19)) // September 19, 2025
+  const [currentDate, setCurrentDate] = useState(new Date())
   const [view, setView] = useState<"day" | "week" | "month">("day")
-  const [visibleCalendars, setVisibleCalendars] = useState<string[]>(MOCK_CALENDARS.map((c) => c.id))
+  const [calendars, setCalendars] = useState<TaskCalendar[]>([])
+  const [tasks, setTasks] = useState<Task[]>([])
+  const [scheduleEvents, setScheduleEvents] = useState<ScheduleEvent[]>([])
+  const [homework, setHomework] = useState<HomeworkAssignment[]>([])
+  const [visibleCalendars, setVisibleCalendars] = useState<string[]>([])
 
-  const scheduleEvents = MOCK_SCHEDULE_EVENTS
-  const tasks = MOCK_TASKS
-  const homework = MOCK_HOMEWORK
-  const calendars = MOCK_CALENDARS
+  useEffect(() => {
+  async function loadData() {
+    try {
+      const cals: TaskCalendar[] = await fetchCalendars()
+      const tks: Task[] = await fetchTasks()
+      const events: ScheduleEvent[] = await fetchScheduleEvents()
+      const hw: HomeworkAssignment[] = await fetchHomework()
+
+      setCalendars(cals)
+      setVisibleCalendars(cals.map((c) => c.id))
+      setTasks(tks)
+      setScheduleEvents(events)
+      setHomework(hw)
+    } catch (err) {
+      console.error("Ошибка загрузки данных:", err)
+    }
+  }
+
+  loadData()
+}, [])
 
   const formatDate = (date: Date) => {
     return date.toLocaleDateString("ru-RU", {
@@ -189,27 +117,42 @@ export function CalendarViews({ currentWeek }: CalendarViewsProps) {
   }
 
   const getEventsForDate = (date: Date) => {
-    const dayOfWeek = date.getDay()
-    const dayNames = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"]
-    const dayName = dayNames[dayOfWeek]
+  const dayOfWeek = date.getDay() // 0 = воскресенье
+  const dayNames = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"]
+  const dayName = dayNames[dayOfWeek]
 
-    // Get schedule events for this day
-    const scheduleEventsForDay = scheduleEvents.filter((event) => {
-      if (!event.days.includes(dayName)) return false
-      if (event.weekType === "both") return true
-      if (event.weekType === currentWeek) return true
-      return false
-    })
+  // Фильтруем расписание по дню недели и типу недели
+  const scheduleEventsForDay = scheduleEvents.filter((event) => {
+    if (!event.days.includes(dayName)) return false
+    if (event.weekType === "both") return true
+    if (event.weekType === currentWeek) return true
+    return false
+  })
 
-    // Get tasks for this date
-    const dateString = date.toISOString().split("T")[0]
-    const tasksForDay = tasks.filter((task) => task.date === dateString && visibleCalendars.includes(task.calendarId))
+  // Фильтруем задачи по дате и видимым календарям
+  const tasksForDay = tasks.filter((task) => {
+    const taskDate = new Date(task.date)
+    return (
+      taskDate.getFullYear() === date.getFullYear() &&
+      taskDate.getMonth() === date.getMonth() &&
+      taskDate.getDate() === date.getDate() &&
+      visibleCalendars.includes(task.calendarId)
+    )
+  })
 
-    // Get homework for this date
-    const homeworkForDay = homework.filter((hw) => hw.dueDate === dateString)
+  // Фильтруем домашку по dueDate
+  const homeworkForDay = homework.filter((hw) => {
+    const hwDate = new Date(hw.dueDate)
+    return (
+      hwDate.getFullYear() === date.getFullYear() &&
+      hwDate.getMonth() === date.getMonth() &&
+      hwDate.getDate() === date.getDate()
+    )
+  })
 
-    return { scheduleEvents: scheduleEventsForDay, tasks: tasksForDay, homework: homeworkForDay }
-  }
+  return { scheduleEvents: scheduleEventsForDay, tasks: tasksForDay, homework: homeworkForDay }
+}
+
 
   const navigateDate = (direction: "prev" | "next") => {
     const newDate = new Date(currentDate)
